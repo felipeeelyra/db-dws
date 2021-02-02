@@ -1,0 +1,9 @@
+.gradle
+**/build/
+!src/**/build/
+
+/bin
+.DS_Store
+*.class
+.vscode/
+*.settings

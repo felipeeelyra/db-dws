@@ -1,12 +1,21 @@
 package com.db.awmd.challenge;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import java.math.BigDecimal;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import com.db.awmd.challenge.domain.Account;
+import com.db.awmd.challenge.domain.AccountTransfer;
 import com.db.awmd.challenge.exception.DuplicateAccountIdException;
 import com.db.awmd.challenge.service.AccountsService;
-import java.math.BigDecimal;
+
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +28,12 @@ public class AccountsServiceTest {
 
   @Autowired
   private AccountsService accountsService;
+
+  @Before
+  public void prepareMockMvc() {
+    // Reset the existing accounts before each test.
+    accountsService.getAccountsRepository().clearAccounts();
+  }
 
   @Test
   public void addAccount() throws Exception {
@@ -42,5 +57,63 @@ public class AccountsServiceTest {
       assertThat(ex.getMessage()).isEqualTo("Account id " + uniqueId + " already exists!");
     }
 
+  }
+
+  @Test
+  public void transfer_WithConcurrency() throws InterruptedException {
+
+    String account1 = "Id-123";
+    Account accountA = new Account(account1);
+    accountA.setBalance(new BigDecimal(50));
+    this.accountsService.createAccount(accountA);
+
+    String account2 = "Id-1234";
+    Account accountB = new Account(account2);
+    accountB.setBalance(new BigDecimal(50));
+    this.accountsService.createAccount(accountB);
+
+    AccountTransfer accTranferAtoB = new AccountTransfer();
+    accTranferAtoB.setAccountTo("Id-1234");
+    accTranferAtoB.setAmount(new BigDecimal(10));
+    AccountTransfer accTranferBtoA = new AccountTransfer();
+    accTranferBtoA.setAccountTo("Id-123");
+    accTranferBtoA.setAmount(new BigDecimal(5));
+
+    int numberOfThreads = 8;
+    ExecutorService service = Executors.newFixedThreadPool(10);
+    CountDownLatch latch = new CountDownLatch(numberOfThreads);
+    MyCounter counter = new MyCounter();
+    for (int i = 0; i < numberOfThreads; i++) {
+      service.submit(() -> {
+        counter.increment();
+        if (counter.getCount() % 2 == 0) {
+          this.accountsService.transfer("Id-123", accTranferAtoB);
+        } else {
+          this.accountsService.transfer("Id-1234", accTranferBtoA);
+        }
+        latch.countDown();
+      });
+    }
+    latch.await();
+
+    assertEquals(this.accountsService.getAccount("Id-123").getBalance(), new BigDecimal(30));
+    assertEquals(this.accountsService.getAccount("Id-1234").getBalance(), new BigDecimal(70));
+
+  }
+
+  public class MyCounter {
+    private int count;
+
+    /**
+     * @return the count
+     */
+    public int getCount() {
+      return count;
+    }
+
+    public void increment() {
+      int temp = count;
+      count = temp + 1;
+    }
   }
 }

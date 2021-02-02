@@ -17,15 +17,17 @@ public class AccountTransfer {
 
   @NotNull
   @NotEmpty
-  private final String accountTo;
+  private String accountTo;
 
   @NotNull
   @Min(value = 0, message = "Cannot transfer an amount less than zero.")
   private BigDecimal amount;
 
+  public AccountTransfer() {
+  }
+
   @JsonCreator
-  public AccountTransfer(@JsonProperty("accountTo") String accountTo,
-    @JsonProperty("amount") BigDecimal amount) {
+  public AccountTransfer(@JsonProperty("accountTo") String accountTo, @JsonProperty("amount") BigDecimal amount) {
     this.accountTo = accountTo;
     this.amount = amount;
   }
