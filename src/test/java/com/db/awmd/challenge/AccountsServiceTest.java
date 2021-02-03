@@ -2,7 +2,6 @@ package com.db.awmd.challenge;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.math.BigDecimal;
@@ -14,12 +13,15 @@ import com.db.awmd.challenge.domain.Account;
 import com.db.awmd.challenge.domain.AccountTransfer;
 import com.db.awmd.challenge.exception.DuplicateAccountIdException;
 import com.db.awmd.challenge.service.AccountsService;
+import com.db.awmd.challenge.service.NotificationService;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
@@ -29,8 +31,11 @@ public class AccountsServiceTest {
   @Autowired
   private AccountsService accountsService;
 
+  @MockBean
+  private NotificationService notificationService;
+
   @Before
-  public void prepareMockMvc() {
+  public void clearAccounts() {
     // Reset the existing accounts before each test.
     accountsService.getAccountsRepository().clearAccounts();
   }
@@ -79,7 +84,7 @@ public class AccountsServiceTest {
     accTranferBtoA.setAccountTo("Id-123");
     accTranferBtoA.setAmount(new BigDecimal(5));
 
-    int numberOfThreads = 8;
+    int numberOfThreads = 2;
     ExecutorService service = Executors.newFixedThreadPool(10);
     CountDownLatch latch = new CountDownLatch(numberOfThreads);
     MyCounter counter = new MyCounter();
@@ -96,12 +101,18 @@ public class AccountsServiceTest {
     }
     latch.await();
 
-    assertEquals(this.accountsService.getAccount("Id-123").getBalance(), new BigDecimal(30));
-    assertEquals(this.accountsService.getAccount("Id-1234").getBalance(), new BigDecimal(70));
+    assertEquals(this.accountsService.getAccount("Id-123").getBalance(), new BigDecimal(45));
+    assertEquals(this.accountsService.getAccount("Id-1234").getBalance(), new BigDecimal(55));
 
+    Mockito.verify(notificationService).notifyAboutTransfer(accountA,
+        "A Transaction has been made from your Account " + accountA.getAccountId() + " to "
+            + accTranferAtoB.getAccountTo() + " with the amount of " + accTranferAtoB.getAmount());
+    Mockito.verify(notificationService).notifyAboutTransfer(accountB,
+        "A Transaction has been made to your Account from " + accountA.getAccountId() + " with the amount of "
+            + accTranferAtoB.getAmount());
   }
 
-  public class MyCounter {
+  private class MyCounter {
     private int count;
 
     /**

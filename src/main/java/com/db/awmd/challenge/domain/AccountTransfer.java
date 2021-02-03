@@ -2,7 +2,6 @@ package com.db.awmd.challenge.domain;
 
 import java.math.BigDecimal;
 
-import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -20,7 +19,6 @@ public class AccountTransfer {
   private String accountTo;
 
   @NotNull
-  @Min(value = 0, message = "Cannot transfer an amount less than zero.")
   private BigDecimal amount;
 
   public AccountTransfer() {

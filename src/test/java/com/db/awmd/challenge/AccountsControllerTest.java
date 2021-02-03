@@ -109,7 +109,7 @@ public class AccountsControllerTest {
   public void transferAmount_belowZero() throws Exception {
 
     this.mockMvc.perform(post("/v1/accounts/Id-123/transfer/").contentType(MediaType.APPLICATION_JSON)
-        .content("{\"accountTo\":\"id-1234\",\"amount\":-1}")).andExpect(status().isBadRequest());
+        .content("{\"accountTo\":\"id-1234\",\"amount\":-10}")).andExpect(status().isBadRequest());
   }
 
   @Test

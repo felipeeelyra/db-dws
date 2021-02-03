@@ -46,7 +46,7 @@ public class AccountsService {
 
   public synchronized void transfer(final String accountIdFrom, final AccountTransfer accountTransfer) {
 
-    if (accountTransfer.getAmount().compareTo(BigDecimal.ZERO) == 0) {
+    if (accountTransfer.getAmount().compareTo(BigDecimal.ZERO) < 1) {
       throw new TransferAmountShouldNotBeZero("Amount to be transfered must be greater than ZERO");
     }
 

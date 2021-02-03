@@ -29,8 +29,7 @@ public class Account {
   }
 
   @JsonCreator
-  public Account(@JsonProperty("accountId") String accountId,
-    @JsonProperty("balance") BigDecimal balance) {
+  public Account(@JsonProperty("accountId") String accountId, @JsonProperty("balance") BigDecimal balance) {
     this.accountId = accountId;
     this.balance = balance;
   }
