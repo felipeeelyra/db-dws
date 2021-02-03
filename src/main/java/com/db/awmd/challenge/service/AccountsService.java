@@ -51,8 +51,8 @@ public class AccountsService {
       throw new TransferAmountShouldNotBeZero("Amount to be transfered must be greater than ZERO");
     }
 
-    Account accountFrom = this.getAccount(accountIdFrom);
-    Account accountTo = this.getAccount(accountTransfer.getAccountTo());
+    final Account accountFrom = this.getAccount(accountIdFrom);
+    final Account accountTo = this.getAccount(accountTransfer.getAccountTo());
 
     if (!hasBalanceAvailable(accountFrom, accountTransfer.getAmount())) {
       throw new BalanceNotAvailableException("There is no available balance on account: " + accountFrom.getAccountId());
@@ -60,39 +60,68 @@ public class AccountsService {
 
     Random number = new Random();
     while (true) {
-      if (accountFrom.getLock().tryLock()) {
-        try {
-          if (accountTo.getLock().tryLock()) {
-            try {
-              this.updateBalance(accountFrom, accountTransfer.getAmount(), TransactionType.SUBTRACT_MONEY);
-              this.updateBalance(accountTo, accountTransfer.getAmount(), TransactionType.ADD_MONEY);
 
-              this.notificationService.notifyAboutTransfer(accountFrom,
-                  "A Transaction has been made from your Account " + accountIdFrom + " to "
-                      + accountTransfer.getAccountTo() + " with the amount of " + accountTransfer.getAmount());
-              this.notificationService.notifyAboutTransfer(accountTo,
-                  "A Transaction has been made to your Account from " + accountIdFrom + " with the amount of "
-                      + accountTransfer.getAmount());
+      if (accountFrom.getAccountId().hashCode() < accountTo.getAccountId().hashCode()) {
 
-              break;
-            } finally {
-              accountTo.getLock().unlock();
+        if (accountFrom.getLock().tryLock()) {
+          try {
+            if (accountTo.getLock().tryLock()) {
+              try {
+                this.transferAmount(accountIdFrom, accountFrom, accountTo, accountTransfer);
+                break;
+              } finally {
+                accountTo.getLock().unlock();
+              }
             }
+          } finally {
+            accountFrom.getLock().unlock();
           }
-        } finally {
-          accountFrom.getLock().unlock();
-        }
 
-        int n = number.nextInt(1000);
-        int TIME = 1000 + n; // 1 second + random delay to prevent livelock
-        try {
-          Thread.sleep(TIME);
-        } catch (InterruptedException e) {
-          e.printStackTrace();
+          this.sleep(number);
+        }
+      } else {
+        if (accountTo.getLock().tryLock()) {
+          try {
+            if (accountFrom.getLock().tryLock()) {
+              try {
+                this.transferAmount(accountIdFrom, accountFrom, accountTo, accountTransfer);
+                break;
+              } finally {
+                accountFrom.getLock().unlock();
+              }
+            }
+          } finally {
+            accountTo.getLock().unlock();
+          }
+
+          this.sleep(number);
         }
       }
+
     }
 
+  }
+
+  private void sleep(final Random number) {
+    int n = number.nextInt(1000);
+    int TIME = 1000 + n; // 1 second + random delay to prevent livelock
+    try {
+      Thread.sleep(TIME);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
+  }
+
+  private void transferAmount(final String accountIdFrom, final Account accountFrom, final Account accountTo,
+      final AccountTransfer accountTransfer) {
+    this.updateBalance(accountFrom, accountTransfer.getAmount(), TransactionType.SUBTRACT_MONEY);
+    this.updateBalance(accountTo, accountTransfer.getAmount(), TransactionType.ADD_MONEY);
+
+    this.notificationService.notifyAboutTransfer(accountFrom,
+        "A Transaction has been made from your Account " + accountIdFrom + " to " + accountTransfer.getAccountTo()
+            + " with the amount of " + accountTransfer.getAmount());
+    this.notificationService.notifyAboutTransfer(accountTo, "A Transaction has been made to your Account from "
+        + accountIdFrom + " with the amount of " + accountTransfer.getAmount());
   }
 
   private void updateBalance(final Account account, final BigDecimal amount, final TransactionType transactionType) {
