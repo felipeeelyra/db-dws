@@ -1,6 +1,7 @@
 package com.db.awmd.challenge.domain;
 
 import java.math.BigDecimal;
+import java.util.concurrent.locks.ReentrantLock;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
@@ -14,6 +15,8 @@ import lombok.Data;
 
 @Data
 public class Account {
+
+  ReentrantLock lock = new ReentrantLock();
 
   @NotNull
   @NotEmpty

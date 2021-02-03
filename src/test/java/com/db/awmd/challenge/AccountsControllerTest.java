@@ -1,7 +1,6 @@
 package com.db.awmd.challenge;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -102,7 +101,8 @@ public class AccountsControllerTest {
     Account account = new Account(uniqueAccountId, new BigDecimal("123.45"));
     this.accountsService.createAccount(account);
     this.mockMvc.perform(get("/v1/accounts/" + uniqueAccountId)).andExpect(status().isOk())
-        .andExpect(content().string("{\"accountId\":\"" + uniqueAccountId + "\",\"balance\":123.45}"));
+        .andExpect(content().string("{\"accountId\":\"" + uniqueAccountId
+            + "\",\"balance\":123.45,\"lock\":{\"holdCount\":0,\"locked\":false,\"queueLength\":0,\"heldByCurrentThread\":false,\"fair\":false}}"));
   }
 
   @Test

@@ -1,6 +1,7 @@
 package com.db.awmd.challenge.service;
 
 import java.math.BigDecimal;
+import java.util.Random;
 
 import com.db.awmd.challenge.domain.Account;
 import com.db.awmd.challenge.domain.AccountTransfer;
@@ -44,7 +45,7 @@ public class AccountsService {
     return accountFrom.getBalance().compareTo(amount) >= 0;
   }
 
-  public synchronized void transfer(final String accountIdFrom, final AccountTransfer accountTransfer) {
+  public void transfer(final String accountIdFrom, final AccountTransfer accountTransfer) {
 
     if (accountTransfer.getAmount().compareTo(BigDecimal.ZERO) < 1) {
       throw new TransferAmountShouldNotBeZero("Amount to be transfered must be greater than ZERO");
@@ -57,14 +58,41 @@ public class AccountsService {
       throw new BalanceNotAvailableException("There is no available balance on account: " + accountFrom.getAccountId());
     }
 
-    this.updateBalance(accountFrom, accountTransfer.getAmount(), TransactionType.SUBTRACT_MONEY);
-    this.updateBalance(accountTo, accountTransfer.getAmount(), TransactionType.ADD_MONEY);
+    Random number = new Random();
+    while (true) {
+      if (accountFrom.getLock().tryLock()) {
+        try {
+          if (accountTo.getLock().tryLock()) {
+            try {
+              this.updateBalance(accountFrom, accountTransfer.getAmount(), TransactionType.SUBTRACT_MONEY);
+              this.updateBalance(accountTo, accountTransfer.getAmount(), TransactionType.ADD_MONEY);
 
-    this.notificationService.notifyAboutTransfer(accountFrom,
-        "A Transaction has been made from your Account " + accountIdFrom + " to " + accountTransfer.getAccountTo()
-            + " with the amount of " + accountTransfer.getAmount());
-    this.notificationService.notifyAboutTransfer(accountTo, "A Transaction has been made to your Account from "
-        + accountIdFrom + " with the amount of " + accountTransfer.getAmount());
+              this.notificationService.notifyAboutTransfer(accountFrom,
+                  "A Transaction has been made from your Account " + accountIdFrom + " to "
+                      + accountTransfer.getAccountTo() + " with the amount of " + accountTransfer.getAmount());
+              this.notificationService.notifyAboutTransfer(accountTo,
+                  "A Transaction has been made to your Account from " + accountIdFrom + " with the amount of "
+                      + accountTransfer.getAmount());
+
+              break;
+            } finally {
+              accountTo.getLock().unlock();
+            }
+          }
+        } finally {
+          accountFrom.getLock().unlock();
+        }
+
+        int n = number.nextInt(1000);
+        int TIME = 1000 + n; // 1 second + random delay to prevent livelock
+        try {
+          Thread.sleep(TIME);
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
+      }
+    }
+
   }
 
   private void updateBalance(final Account account, final BigDecimal amount, final TransactionType transactionType) {
